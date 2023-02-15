@@ -13,7 +13,13 @@ echo -e " Installing MariaDB...$COL_RESET"
 MARIADB_VERSION='10.6'
 sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password password $DBRootPassword"
 sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password_again password $DBRootPassword"
+if [[ ("$DISTRO" == "18") ]]; then
 apt_install mariadb-server mariadb-client
+else [[ ("$DISTRO" == "20") ]]; then
+hide_output sudo curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup \
+hide_output sudo bash mariadb_repo_setup --mariadb-server-version=10.6 \
+apt_install mariadb-server mariadb-client
+fi
 echo -e "$GREEN MariaDB build complete...$COL_RESET"
 echo -e " Creating DB users for YiiMP...$COL_RESET"
 
