@@ -11,8 +11,8 @@ echo -e " Upgrading NGINX...$COL_RESET"
 hide_output sudo wget https://nginx.org/keys/nginx_signing.key
 hide_output sudo apt-key add nginx_signing.key
 sudo rm -r nginx_signing.key
-echo 'deb https://nginx.org/packages/mainline/ubuntu/ xenial nginx
-deb-src https://nginx.org/packages/mainline/ubuntu/ xenial nginx
+echo 'deb https://nginx.org/packages/mainline/ubuntu/ focal nginx
+deb-src https://nginx.org/packages/mainline/ubuntu/ focal nginx
 ' | sudo -E tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
 
 hide_output sudo apt-get update
