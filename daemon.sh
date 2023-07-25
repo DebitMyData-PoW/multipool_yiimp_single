@@ -6,10 +6,10 @@ source /etc/functions.sh
 source /etc/multipool.conf 
 source $STORAGE_ROOT/yiimp/.yiimp.conf
 
-echo -e " Installing BitCoin PPA...$COL_RESET"
-if [ ! -f /etc/apt/sources.list.d/bitcoin.list ]; then
-hide_output sudo add-apt-repository -y ppa:bitcoin/bitcoin
-fi
+# echo -e " Installing BitCoin PPA...$COL_RESET"
+# if [ ! -f /etc/apt/sources.list.d/bitcoin.list ]; then
+# hide_output sudo add-apt-repository -y ppa:bitcoin/bitcoin
+# fi
 echo -e " Installing additional system files required for daemons...$COL_RESET"
 hide_output sudo apt-get update
 # hide_output sudo apt-get install -y libdb4.8-dev libdb4.8++-dev
