@@ -13,7 +13,7 @@ echo -e " Installing MariaDB...$COL_RESET"
 MARIADB_VERSION='10.3'
 sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password password $DBRootPassword"
 sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password_again password $DBRootPassword"
-if [[ ("$DISTRO" == "18") ]]; then
+if [[ ("$DISTRO" == "20") ]]; then
 apt_install mariadb-server mariadb-client
 else
 sudo curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
