@@ -51,7 +51,8 @@ echo -e " Upgrading system packages...$COL_RESET"
 # if [ ! -f /boot/grub/menu.lst ]; then
 # apt_get_quiet upgrade
 # else
-# sudo rm /boot/grub/menu.lst
+sudo rm /boot/grub/menu.lst
+hide_output sudo apt install grub-legacy-ec2 -y
 hide_output sudo update-grub-legacy-ec2 -y
 apt_get_quiet upgrade
 # fi
