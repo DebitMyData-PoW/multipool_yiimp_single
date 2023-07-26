@@ -31,7 +31,7 @@ echo -e "$GREEN Done...$COL_RESET"
 # PHP 7
 
 echo -e " Installing Ondrej PHP PPA...$COL_RESET"
-if [ ! -f /etc/apt/sources.list.d/ondrej-php-bionic.list ]; then
+if [ ! -f /etc/apt/sources.list.d/ondrej-php-focal.list ]; then
 hide_output sudo add-apt-repository -y ppa:ondrej/php
 fi
 echo -e "$GREEN Done...$COL_RESET"
