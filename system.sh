@@ -60,7 +60,7 @@ hide_output sudo apt-get upgrade -y
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Dist-Upgrade...$COL_RESET"
 # apt_get_quiet dist-upgrade
-hide_output sudo dist-upgrade -y
+hide_output sudo apt-get dist-upgrade -y
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Autoremove...$COL_RESET"
 apt_get_quiet autoremove
