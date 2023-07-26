@@ -54,11 +54,13 @@ echo -e " Upgrading system packages...$COL_RESET"
 sudo rm /boot/grub/menu.lst
 hide_output sudo apt install grub-legacy-ec2 -y
 hide_output sudo update-grub-legacy-ec2 -y
-apt_get_quiet upgrade
+hide_output sudo apt-get upgrade -y
+# apt_get_quiet upgrade
 # fi
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Dist-Upgrade...$COL_RESET"
-apt_get_quiet dist-upgrade
+# apt_get_quiet dist-upgrade
+hide_output sudo dist-upgrade -y
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Autoremove...$COL_RESET"
 apt_get_quiet autoremove
