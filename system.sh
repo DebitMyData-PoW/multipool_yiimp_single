@@ -48,18 +48,18 @@ hide_output sudo apt-get update
 echo -e "$GREEN Done...$COL_RESET"
 
 echo -e " Upgrading system packages (can be long...)$COL_RESET"
-# if [ ! -f /boot/grub/menu.lst ]; then
-# apt_get_quiet upgrade
-# else
-# sudo rm /boot/grub/menu.lst
-# hide_output sudo apt install grub-legacy-ec2 -y
-# hide_output sudo update-grub-legacy-ec2 -y
+if [ ! -f /boot/grub/menu.lst ]; then
+apt_get_quiet upgrade
+else
+sudo rm /boot/grub/menu.lst
+hide_output sudo apt install grub-legacy-ec2 -y
+hide_output sudo update-grub-legacy-ec2 -y
 hide_output sudo apt-get upgrade -y
-# apt_get_quiet upgrade
-# fi
+apt_get_quiet upgrade -y
+fi
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Dist-Upgrade...$COL_RESET"
-# apt_get_quiet dist-upgrade
+apt_get_quiet dist-upgrade
 hide_output sudo apt-get dist-upgrade -y
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Autoremove...$COL_RESET"
