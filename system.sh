@@ -136,9 +136,9 @@ apt_install php7.4-fpm php7.4-opcache php7.4-fpm php7.4 php7.4-common php7.4-gd 
 php7.4-memcache php7.4-memcached memcached \
 php7.4-mysql php7.4-imap php7.4-cli php7.4-cgi \
 php-pear php-auth-sasl mcrypt imagemagick libruby \
-php7.4-curl php7.4-intl php7.4-pspell php7.4-iconv php7.4-sqlite3 \
+php7.4-curl php7.4-intl php7.4-pspell php7.4-sqlite3 \
 php7.4-tidy php7.4-xmlrpc php7.4-xsl memcached php7.4-memcache \
-php7.4-imagick php7.4-gettext php7.4-zip php7.4-mbstring \
+php7.4-imagick php7.4-common php7.4-zip php7.4-mbstring \
 fail2ban ntpdate python3 python3-dev python3-pip \
 curl git sudo coreutils pollinate unzip unattended-upgrades cron \
 pwgen libgmp3-dev libmysqlclient-dev libcurl4-gnutls-dev \
