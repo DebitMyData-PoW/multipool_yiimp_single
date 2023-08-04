@@ -49,15 +49,15 @@ echo -e "$GREEN Done...$COL_RESET"
 
 echo -e " Upgrading system packages (can be long...)$COL_RESET"
 if [ ! -f /boot/grub/menu.lst ]; then
-# apt_get_quiet upgrade
-sudo apt-get upgrade -y
+apt_get_quiet upgrade
+# sudo apt-get upgrade -y
 else
 sudo rm /boot/grub/menu.lst
 hide_output sudo apt install grub-legacy-ec2 -y
 hide_output sudo update-grub-legacy-ec2 -y
-hide_output sudo apt-get upgrade -y
-# apt_get_quiet upgrade -y
-sudo apt-get upgrade -y
+# hide_output sudo apt-get upgrade -y
+apt_get_quiet upgrade
+# sudo apt-get upgrade -y
 fi
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Dist-Upgrade...$COL_RESET"
