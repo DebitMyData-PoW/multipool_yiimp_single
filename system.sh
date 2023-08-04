@@ -35,8 +35,8 @@ if [ ! -f /etc/apt/sources.list.d/ondrej-php-focal.list ]; then
 hide_output sudo add-apt-repository -y ppa:ondrej/php
 fi
 echo -e "$GREEN Done...$COL_RESET"
-# MariaDB
 
+# MariaDB
 echo -e " Installing MariaDB Repository...$COL_RESET"
 hide_output sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
 sudo add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://mirrors.accretive-networks.net/mariadb/repo/10.3/ubuntu focal main' >/dev/null 2>&1
@@ -50,18 +50,21 @@ echo -e "$GREEN Done...$COL_RESET"
 echo -e " Upgrading system packages (can be long...)$COL_RESET"
 if [ ! -f /boot/grub/menu.lst ]; then
 # apt_get_quiet upgrade
-sudo apt-get upgrade -y
+# sudo apt-get upgrade -y
+hide_output sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 else
 sudo rm /boot/grub/menu.lst
 hide_output sudo apt install grub-legacy-ec2 -y
 hide_output sudo update-grub-legacy-ec2 -y
-hide_output sudo apt-get upgrade -y
+# hide_output sudo apt-get upgrade -y
+hide_output sudo DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
 # apt_get_quiet upgrade -y
 sudo apt-get upgrade -y
 fi
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Dist-Upgrade...$COL_RESET"
-apt_get_quiet dist-upgrade
+# apt_get_quiet dist-upgrade
+hide_output sudo DEBIAN_FRONTEND=noninteractive apt-get -yq dist-upgrade
 # hide_output sudo apt-get dist-upgrade -y
 echo -e "$GREEN Done...$COL_RESET"
 echo -e " Running Autoremove...$COL_RESET"
