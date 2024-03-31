@@ -101,6 +101,7 @@ sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2018-01-stratum
 sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2018-02-coins_getinfo.sql
 sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2019-03-coins_thepool_life.sql
 sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2023-01-23-workers.sql
+sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2023-02-08-mweb-segwit.sql
 echo -e "$GREEN Database import complete...$COL_RESET"
 
 echo -e " Tweaking MariaDB for better performance...$COL_RESET"
