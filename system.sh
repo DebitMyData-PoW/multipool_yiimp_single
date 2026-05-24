@@ -47,7 +47,7 @@ echo -e "$GREEN Done...$COL_RESET"
 
 # MariaDB
 echo -e " Installing MariaDB Repository...$COL_RESET"
-hide_output bash -c "curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | sudo bash -s -- --mariadb-server-version=10.11" >/dev/null 2>&1
+curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | sudo bash -s -- --mariadb-server-version=10.11
 echo -e "$GREEN Done...$COL_RESET"
 # Upgrade System Files
 
