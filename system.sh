@@ -47,7 +47,11 @@ echo -e "$GREEN Done...$COL_RESET"
 
 # MariaDB
 echo -e " Installing MariaDB Repository...$COL_RESET"
-curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | sudo bash -s -- --mariadb-server-version=10.11
+hide_output sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc | \
+sudo gpg --dearmor -o /etc/apt/keyrings/mariadb.gpg
+echo "deb [signed-by=/etc/apt/keyrings/mariadb.gpg] https://mirror.mariadb.org/repo/10.11/ubuntu noble main" | \
+sudo tee /etc/apt/sources.list.d/mariadb.list >/dev/null
 echo -e "$GREEN Done...$COL_RESET"
 # Upgrade System Files
 
