@@ -5,11 +5,17 @@
 
 clear
 source /etc/functions.sh
+source /etc/multipool.conf
+
 sudo touch $STORAGE_ROOT/yiimp/.yiimp.conf
 sudo chown $USER:$USER $STORAGE_ROOT/yiimp/.yiimp.conf
 sudo chmod 600 $STORAGE_ROOT/yiimp/.yiimp.conf
+
+sudo usermod -aG crypto-data $USER >/dev/null 2>&1
+
 source $STORAGE_ROOT/yiimp/.yiimp.conf
 source $HOME/multipool/yiimp_single/.wireguard.install.cnf
+
 if [[ ("$wireguard" == "true") ]]; then
 source $STORAGE_ROOT/yiimp/.wireguard.conf
 fi
