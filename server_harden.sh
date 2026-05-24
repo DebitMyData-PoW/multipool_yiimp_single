@@ -10,7 +10,6 @@ source /etc/multipool.conf
 
 echo -e " Boosting server performance for YiiMP...$COL_RESET"
 # Boost Network Performance by Enabling TCP BBR
-hide_output sudo apt install -y --install-recommends linux-generic-hwe-20.04
 echo 'net.core.default_qdisc=fq' | hide_output sudo tee -a /etc/sysctl.conf
 echo 'net.ipv4.tcp_congestion_control=bbr' | hide_output sudo tee -a /etc/sysctl.conf
 
