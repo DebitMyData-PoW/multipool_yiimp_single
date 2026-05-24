@@ -15,7 +15,7 @@ fi
 echo -e " Setting TimeZone to UTC...$COL_RESET"
 if [ ! -f /etc/timezone ]; then
 echo "Setting Bunbunbunny timezone to UTC."
-echo "Etc/UTC" > sudo /etc/timezone
+echo "Etc/UTC" | sudo tee /etc/timezone >/dev/null
 restart_service rsyslog
 fi
 echo -e "$GREEN Done...$COL_RESET"
@@ -31,15 +31,14 @@ echo -e "$GREEN Done...$COL_RESET"
 # PHP 7
 
 echo -e " Installing Ondrej PHP PPA...$COL_RESET"
-if [ ! -f /etc/apt/sources.list.d/ondrej-php-focal.list ]; then
+if [ ! -f /etc/apt/sources.list.d/ondrej-ubuntu-php.list ]; then
 hide_output sudo add-apt-repository -y ppa:ondrej/php
 fi
 echo -e "$GREEN Done...$COL_RESET"
 
 # MariaDB
 echo -e " Installing MariaDB Repository...$COL_RESET"
-hide_output sudo apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-sudo add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://mirrors.accretive-networks.net/mariadb/repo/10.6/ubuntu focal main' >/dev/null 2>&1
+hide_output bash -c "curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | sudo bash -s -- --mariadb-server-version=10.11" >/dev/null 2>&1
 echo -e "$GREEN Done...$COL_RESET"
 # Upgrade System Files
 
@@ -75,7 +74,7 @@ echo -e " Installing Base system packages...$COL_RESET"
 apt_install python3 python3-dev python3-pip \
 wget curl git sudo coreutils bc \
 haveged pollinate unzip \
-unattended-upgrades cron ntp fail2ban screen
+unattended-upgrades cron chrony fail2ban screen
 
 # ### Seed /dev/urandom
 echo -e "$GREEN Done...$COL_RESET"
@@ -135,21 +134,21 @@ build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainut
 automake cmake gnupg2 ca-certificates lsb-release nginx certbot libsodium-dev \
 libnghttp2-dev librtmp-dev libssh2-1 libssh2-1-dev libldap2-dev libidn11-dev libpsl-dev libkrb5-dev
 else
-apt_install php7.4-fpm php7.4-opcache php7.4-fpm php7.4 php7.4-common php7.4-gd \
-php7.4-memcache php7.4-memcached memcached \
-php7.4-mysql php7.4-imap php7.4-cli php7.4-cgi \
-php-pear php-auth-sasl mcrypt imagemagick libruby \
-php7.4-curl php7.4-intl php7.4-pspell php7.4-iconv php7.4-sqlite3 \
-php7.4-tidy php7.4-xmlrpc php7.4-xsl memcached php7.4-memcache \
-php7.4-zip php7.4-mbstring \
-php7.4-imagick php7.4-common php7.4-zip php7.4-mbstring \
-fail2ban ntpdate python3 python3-dev python3-pip \
-curl git sudo coreutils pollinate unzip unattended-upgrades cron \
-pwgen libgmp3-dev libmysqlclient-dev libcurl4-gnutls-dev \
-libkrb5-dev libldap2-dev libidn11-dev gnutls-dev librtmp-dev \
-build-essential libtool autotools-dev automake pkg-config libevent-dev bsdmainutils libssl-dev \
-libpsl-dev libnghttp2-dev automake cmake gnupg2 ca-certificates lsb-release nginx certbot libsodium-dev \
-libnghttp2-dev librtmp-dev libssh2-1 libssh2-1-dev libldap2-dev libidn11-dev libpsl-dev libkrb5-dev
+apt_install php8.1-fpm php8.1-opcache php8.1 php8.1-common php8.1-gd \
+php8.1-memcached memcached \
+php8.1-mysql php8.1-imap php8.1-cli php8.1-cgi \
+php-pear php-auth-sasl imagemagick libruby \
+php8.1-curl php8.1-intl php8.1-pspell php8.1-sqlite3 \
+php8.1-tidy php8.1-xsl \
+php8.1-zip php8.1-mbstring \
+php8.1-imagick \
+fail2ban chrony python3 python3-dev python3-pip \
+curl git sudo coreutils unzip unattended-upgrades cron \
+pwgen libgmp3-dev default-libmysqlclient-dev libcurl4-gnutls-dev \
+libkrb5-dev libldap2-dev libidn-dev gnutls-dev librtmp-dev \
+build-essential libtool autotools-dev automake pkg-config libevent-dev libssl-dev \
+libpsl-dev libnghttp2-dev cmake gnupg2 ca-certificates lsb-release nginx certbot libsodium-dev \
+libssh2-1 libssh2-1-dev
 fi
 
 echo -e "$GREEN Done...$COL_RESET"
