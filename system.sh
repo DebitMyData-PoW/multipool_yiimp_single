@@ -5,6 +5,9 @@
 
 clear
 source /etc/functions.sh
+sudo touch $STORAGE_ROOT/yiimp/.yiimp.conf
+sudo chown $USER:$USER $STORAGE_ROOT/yiimp/.yiimp.conf
+sudo chmod 600 $STORAGE_ROOT/yiimp/.yiimp.conf
 source $STORAGE_ROOT/yiimp/.yiimp.conf
 source $HOME/multipool/yiimp_single/.wireguard.install.cnf
 if [[ ("$wireguard" == "true") ]]; then
