@@ -27,6 +27,6 @@ sudo rm -f /etc/nginx/sites-enabled/default
 echo -e "$GREEN NGINX installation complete...$COL_RESET"
 
 restart_service nginx
-restart_service php8.1-fpm
+restart_service php7.4-fpm
 
 cd $HOME/multipool/yiimp_single
