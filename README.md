@@ -23,8 +23,9 @@ PHP 8.3. It does nothing on its own: start from
 | `motd.sh` | The login screen and the `motd`, `screens`, `stratum`, `addport` commands (`ubuntu/`) |
 | `server_harden.sh` | Network tuning (`/etc/sysctl.d/60-yiimp.conf`) |
 
-The pool's code comes from the `ubuntu-24.04` branch of debitmydata-yiimp until it is merged
-into `next` (`YiiMPBranch` in `questions.sh`; `YIIMP_REF=<branch> multipool` picks another one).
+The pool's code comes from the `main` branch of debitmydata-yiimp, which only gets tested code
+(work goes on in `next`). `YiiMPBranch` in `questions.sh` sets it; `YIIMP_REF=<branch> multipool`
+picks another one.
 
 Based on the installer by cryptopool.builders (Original-Tasty) and le2Ks, itself based on
 [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox).

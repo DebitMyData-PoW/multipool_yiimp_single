@@ -9,10 +9,10 @@
 source /etc/functions.sh
 source /etc/multipool.conf
 
-# The pool's code: DebitMyData's YiiMP. YIIMP_REF picks another branch or tag than the one the
-# install is made for. The PHP 8.3 code is on ubuntu-24.04 until it is merged into next.
+# The pool's code: DebitMyData's YiiMP, from its main branch (the tested code; work goes on in
+# next). YIIMP_REF picks another branch or tag.
 YiiMPRepo='https://github.com/DebitMyData-PoW/debitmydata-yiimp.git'
-YiiMPBranch="${YIIMP_REF:-ubuntu-24.04}"
+YiiMPBranch="${YIIMP_REF:-main}"
 # Ubuntu 24.04's own PHP
 PHP_VERSION='8.3'
 
