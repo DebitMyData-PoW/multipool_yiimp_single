@@ -27,6 +27,25 @@ sudo sed -i "s|ROOTDIR=/data/yiimp|ROOTDIR=${SITE}|g" /bin/yiimp
 for file in runconsole.php run.php yaamp/yiic.php; do
 	sudo sed -i "s|'serverconfig.php'|'${SITE}/configuration/serverconfig.php'|" "$SITE/web/$file"
 done
+# The app's manifest names this website, and its Google Play app if it has one (PlayAppId), so
+# that the page knows when the app is installed. The pool's code names DebitMyData's own.
+scheme=$([[ "$SSLMode" == "none" ]] && echo http || echo https)
+sudo python3 - "$SITE/web/manifest.json" "${scheme}://${DomainName}" "${PlayAppId:-}" <<'PY'
+import json
+import sys
+
+path, site, play = sys.argv[1:4]
+with open(path, encoding="utf-8") as handle:
+    manifest = json.load(handle)
+apps = [{"platform": "webapp", "url": f"{site}/manifest.json", "id": f"{site}/"}]
+if play:
+    apps.append({"platform": "play", "id": play,
+                 "url": f"https://play.google.com/store/apps/details?id={play}"})
+manifest["related_applications"] = apps
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(manifest, handle, indent=2, ensure_ascii=False)
+    handle.write("\n")
+PY
 
 echo -e " Creating the nginx site...$COL_RESET"
 echo 'map $http_user_agent $blockedagent {

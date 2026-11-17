@@ -13,7 +13,7 @@ PHP 8.3. It does nothing on its own: start from
 | `system.sh` | Updates, Ubuntu's PHP 8.3, nginx, memcached, the build tools, the firewall; downloads the pool's code |
 | `db.sh` | MariaDB 10.11, the database and its two users, YiiMP's tables, then DebitMyData's (PPLNS, notifications) |
 | `nginx_upgrade.sh` | nginx's main config (`nginx_confs/nginx.conf`) |
-| `web.sh` | The website, its nginx site (`nginx_confs/`, `nginx_site.sh`), the admin portal's password, Cloudflare's real IPs, the settings, the jobs |
+| `web.sh` | The website, its nginx site (`nginx_confs/`, `nginx_site.sh`), the admin portal's password, Cloudflare's real IPs, the settings, the app's manifest (this website, and its Google Play app if there is one), the jobs |
 | `cloudflare.sh` | Behind Cloudflare: the visitors' real IPs in nginx, and only Cloudflare on ports 80 and 443 (run from `web.sh`; run it again if Cloudflare changes its addresses) |
 | `https.sh` | HTTPS from Let's Encrypt, without Cloudflare (run from `web.sh`; run it again later if Let's Encrypt refused) |
 | `stratum.sh` | Builds blocknotify and the stratum; fills in their config files |

@@ -156,6 +156,15 @@ if [ -z "${StratumURL}" ]; then
 		"${DomainName}" "$DOMAIN_RE" "$DOMAIN_RULE"
 fi
 
+if [ -z "${PlayAppId+x}" ]; then
+	ask PlayAppId "Android App (Google Play)" \
+		"If you publish this website as an Android app on Google Play (with Bubblewrap), its package name, like io.example.pool: the website then knows when that app is installed, and does not offer people the browser version too.
+\n\nLeave it empty if you have no Play app. You can add it later (the installer's README says how).
+\n\nPackage name:" \
+		"" '^([a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+)?$' \
+		'Empty, or a package name: lowercase words separated by dots, like io.example.pool.'
+fi
+
 if [ -z "${AdminEmail}" ]; then
 	# (it goes in the website's settings as it is: no quotes or spaces)
 	if [[ "$SSLMode" == "letsencrypt" ]]; then
@@ -227,12 +236,13 @@ Using Sub-Domain : ${UsingSubDomain}
 HTTPS            : ${SSLMode}
 Domain Name      : ${DomainName}
 Stratum URL      : ${StratumURL}
+Android app      : ${PlayAppId:-none}
 Admin Email      : ${AdminEmail}
 Your Public IP   : ${PublicIP}
 DMD Stratum Port : ${StratumPort}
 Admin Portal     : /site/AdminPortal
 Admin User       : ${AdminUser}
-Admin Password   : ${AdminPassword}" 18 70
+Admin Password   : ${AdminPassword}" 19 70
 
 # Get exit status
 # 0 means user hit [yes] button.
@@ -252,6 +262,7 @@ case $response in
 				STORAGE_ROOT "${STORAGE_ROOT}" \
 				DomainName "${DomainName}" \
 				StratumURL "${StratumURL}" \
+				PlayAppId "${PlayAppId}" \
 				AdminEmail "${AdminEmail}" \
 				PublicIP "${PublicIP}" \
 				StratumPort "${StratumPort}" \
