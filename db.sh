@@ -1,128 +1,77 @@
 #####################################################
-# Created by cryptopool.builders-OLD-VERSION for crypto use...
+# The database: Ubuntu 24.04's MariaDB (10.11), the yiimpfrontend database with its two users
+# (panel for the website, stratum for the stratum), then YiiMP's tables and DebitMyData's
+# changes, in the order they must run.
+#
+# MariaDB's root user stays as Ubuntu sets it up: only the system's root logs in (sudo mysql),
+# with no password to keep or to leak.
+#
+# Created by cryptopool.builders for crypto use. Updated by DebitMyData for its pool.
 #####################################################
 
 source /etc/functions.sh
-source $STORAGE_ROOT/yiimp/.yiimp.conf
-source $HOME/multipool/yiimp_single/.wireguard.install.cnf
-if [[ ("$wireguard" == "true") ]]; then
-source $STORAGE_ROOT/yiimp/.wireguard.conf
-fi
+source /etc/multipool.conf
+source "$STORAGE_ROOT/yiimp/.yiimp.conf"
 
 echo -e " Installing MariaDB...$COL_RESET"
-MARIADB_VERSION='10.3'
-sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password password $DBRootPassword"
-sudo debconf-set-selections <<< "maria-db-$MARIADB_VERSION mysql-server/root_password_again password $DBRootPassword"
-# if [[ ("$DISTRO_VERSION" != "16") ]]; then
 apt_install mariadb-server mariadb-client
-# else
-# sudo curl -LsS -O https://downloads.mariadb.com/MariaDB/mariadb_repo_setup
-# hide_output sudo bash mariadb_repo_setup --mariadb-server-version=10.3
-# apt_install mariadb-server mariadb-client
-# fi
-echo -e "$GREEN MariaDB build complete...$COL_RESET"
-echo -e " Creating DB users for YiiMP...$COL_RESET"
+sudo service mariadb start >/dev/null 2>&1
+echo -e "$GREEN MariaDB installed...$COL_RESET"
 
-if [[ ("$wireguard" == "false") ]]; then
-Q1="CREATE DATABASE IF NOT EXISTS yiimpfrontend;"
-Q2="GRANT ALL ON yiimpfrontend.* TO 'panel'@'localhost' IDENTIFIED BY '$PanelUserDBPassword';"
-Q3="GRANT ALL ON yiimpfrontend.* TO 'stratum'@'localhost' IDENTIFIED BY '$StratumUserDBPassword';"
-Q4="FLUSH PRIVILEGES;"
-SQL="${Q1}${Q2}${Q3}${Q4}"
-sudo mysql -u root -p"${DBRootPassword}" -e "$SQL"
+echo -e " Creating the database and its users...$COL_RESET"
+# (on standard input: the passwords stay out of the process list)
+hide_output sudo mysql <<SQL
+CREATE DATABASE IF NOT EXISTS yiimpfrontend;
+CREATE USER IF NOT EXISTS 'panel'@'localhost' IDENTIFIED BY '${PanelUserDBPassword}';
+ALTER USER 'panel'@'localhost' IDENTIFIED BY '${PanelUserDBPassword}';
+CREATE USER IF NOT EXISTS 'stratum'@'localhost' IDENTIFIED BY '${StratumUserDBPassword}';
+ALTER USER 'stratum'@'localhost' IDENTIFIED BY '${StratumUserDBPassword}';
+GRANT ALL ON yiimpfrontend.* TO 'panel'@'localhost';
+GRANT ALL ON yiimpfrontend.* TO 'stratum'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+echo -e "$GREEN Database created...$COL_RESET"
+
+# The two users' logins, for tools (mysql --defaults-file=... --defaults-group-suffix=host1)
+printf '%s\n' \
+	'[clienthost1]' 'user=panel' "password=${PanelUserDBPassword}" 'database=yiimpfrontend' 'host=localhost' \
+	'[clienthost2]' 'user=stratum' "password=${StratumUserDBPassword}" 'database=yiimpfrontend' 'host=localhost' |
+	sudo tee "$STORAGE_ROOT/yiimp/.my.cnf" >/dev/null
+sudo chown "$(id -un):$(id -gn)" "$STORAGE_ROOT/yiimp/.my.cnf"
+sudo chmod 600 "$STORAGE_ROOT/yiimp/.my.cnf"
+
+TABLES=$(sudo mysql -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='yiimpfrontend'")
+if [ "$TABLES" != "0" ]; then
+	# The install runs again on a pool that has its data: the database stays as it is.
+	echo -e "$YELLOW The database already has its tables: kept as it is.$COL_RESET"
 else
-  Q1="CREATE DATABASE IF NOT EXISTS yiimpfrontend;"
-  Q2="GRANT ALL ON yiimpfrontend.* TO 'panel'@'${DBInternalIP}' IDENTIFIED BY '$PanelUserDBPassword';"
-  Q3="GRANT ALL ON yiimpfrontend.* TO 'stratum'@'${DBInternalIP}' IDENTIFIED BY '$StratumUserDBPassword';"
-  Q4="FLUSH PRIVILEGES;"
-  SQL="${Q1}${Q2}${Q3}${Q4}"
-  sudo mysql -u root -p"${DBRootPassword}" -e "$SQL"
-fi
-echo -e "$GREEN Database creation complete...$COL_RESET"
+	echo -e " Importing YiiMP's tables...$COL_RESET"
+	cd "$STORAGE_ROOT/yiimp/yiimp_setup/yiimp/sql" || exit 1
+	if ! zcat 2016-04-03-yaamp.sql.gz | sudo mysql yiimpfrontend; then
+		echo "FAILED: importing YiiMP's tables (sql/2016-04-03-yaamp.sql.gz)"
+		exit 1
+	fi
+	# YiiMP's updates since: some only add what the first file already has (--force goes on)
+	for update in \
+		2016-04-24-market_history.sql 2016-04-27-settings.sql 2016-05-11-coins.sql \
+		2016-05-15-benchmarks.sql 2016-05-23-bookmarks.sql 2016-06-01-notifications.sql \
+		2016-06-04-bench_chips.sql 2016-11-23-coins.sql 2017-02-05-benchmarks.sql \
+		2017-03-31-earnings_index.sql 2017-05-accounts_case_swaptime.sql \
+		2017-06-payouts_coinid_memo.sql 2017-09-notifications.sql 2017-10-bookmarks.sql \
+		2017-11-segwit.sql 2018-01-stratums_ports.sql 2018-02-coins_getinfo.sql \
+		2019-03-coins_thepool_life.sql 2023-01-23-workers.sql 2023-02-08-mweb-segwit.sql; do
+		sudo mysql --force yiimpfrontend < "$update" >/dev/null 2>&1
+	done
+	# DebitMyData's: PPLNS in the coinbase, then the notifications. In this order: the second file
+	# makes the table that the third one changes. These must all work.
+	for update in 2026-11-12-pplns-coinbase.sql 2026-11-13-push.sql 2026-11-12-push-test.sql; do
+		hide_output sudo mysql yiimpfrontend < "$update"
+	done
+	echo -e "$GREEN Database import complete...$COL_RESET"
 
-echo -e " Creating my.cnf...$COL_RESET"
-
-if [[ ("$wireguard" == "false") ]]; then
-echo '[clienthost1]
-user=panel
-password='"${PanelUserDBPassword}"'
-database=yiimpfrontend
-host=localhost
-[clienthost2]
-user=stratum
-password='"${StratumUserDBPassword}"'
-database=yiimpfrontend
-host=localhost
-[mysql]
-user=root
-password='"${DBRootPassword}"'
-' | sudo -E tee $STORAGE_ROOT/yiimp/.my.cnf >/dev/null 2>&1
-else
-echo '[clienthost1]
-  user=panel
-  password='"${PanelUserDBPassword}"'
-  database=yiimpfrontend
-  host='"${DBInternalIP}"'
-  [clienthost2]
-  user=stratum
-  password='"${StratumUserDBPassword}"'
-  database=yiimpfrontend
-  host='"${DBInternalIP}"'
-  [mysql]
-  user=root
-  password='"${DBRootPassword}"'
-  ' | sudo -E tee $STORAGE_ROOT/yiimp/.my.cnf >/dev/null 2>&1
 fi
 
-sudo chmod 0600 $STORAGE_ROOT/yiimp/.my.cnf
-echo -e "$GREEN Passwords can be found in $STORAGE_ROOT/yiimp/.my.cnf$COL_RESET"
-
-echo -e " Importing YiiMP Default database values...$COL_RESET"
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/sql
-# import sql dump
-sudo zcat 2016-04-03-yaamp.sql.gz | sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend
-# oh the humanity!
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-04-24-market_history.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-04-27-settings.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-05-11-coins.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-05-15-benchmarks.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-05-23-bookmarks.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-06-01-notifications.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-06-04-bench_chips.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2016-11-23-coins.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-02-05-benchmarks.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-03-31-earnings_index.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-05-accounts_case_swaptime.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-06-payouts_coinid_memo.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-09-notifications.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-10-bookmarks.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2017-11-segwit.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2018-01-stratums_ports.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2018-02-coins_getinfo.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2019-03-coins_thepool_life.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2023-01-23-workers.sql
-sudo mysql -u root -p"${DBRootPassword}" yiimpfrontend --force < 2023-02-08-mweb-segwit.sql
-echo -e "$GREEN Database import complete...$COL_RESET"
-
-echo -e " Tweaking MariaDB for better performance...$COL_RESET"
-if [[ ("$wireguard" == "false") ]]; then
-sudo sed -i '/max_connections/c\max_connections         = 800' /etc/mysql/my.cnf
-sudo sed -i '/thread_cache_size/c\thread_cache_size       = 512' /etc/mysql/my.cnf
-sudo sed -i '/tmp_table_size/c\tmp_table_size          = 128M' /etc/mysql/my.cnf
-sudo sed -i '/max_heap_table_size/c\max_heap_table_size     = 128M' /etc/mysql/my.cnf
-sudo sed -i '/wait_timeout/c\wait_timeout            = 60' /etc/mysql/my.cnf
-sudo sed -i '/max_allowed_packet/c\max_allowed_packet      = 64M' /etc/mysql/my.cnf
-else
-  sudo sed -i '/max_connections/c\max_connections         = 800' /etc/mysql/my.cnf
-  sudo sed -i '/thread_cache_size/c\thread_cache_size       = 512' /etc/mysql/my.cnf
-  sudo sed -i '/tmp_table_size/c\tmp_table_size          = 128M' /etc/mysql/my.cnf
-  sudo sed -i '/max_heap_table_size/c\max_heap_table_size     = 128M' /etc/mysql/my.cnf
-  sudo sed -i '/wait_timeout/c\wait_timeout            = 60' /etc/mysql/my.cnf
-  sudo sed -i '/max_allowed_packet/c\max_allowed_packet      = 64M' /etc/mysql/my.cnf
-  sudo sed -i 's/#bind-address=0.0.0.0/bind-address='${DBInternalIP}'/g' /etc/mysql/my.cnf
-fi
-echo -e "$GREEN Database tweak complete...$COL_RESET"
-restart_service mysql
+restart_service mariadb
 echo
 echo -e "$GREEN Database build complete...$COL_RESET"
-cd $HOME/multipool/yiimp_single
+cd "$HOME/multipool/yiimp_single" || exit 1

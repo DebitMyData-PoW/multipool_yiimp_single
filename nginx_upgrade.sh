@@ -1,32 +1,30 @@
 #####################################################
-# Created by cryptopool.builders-OLD-VERSION for crypto use...
+# nginx's main config (nginx_confs/nginx.conf), with Ubuntu's default site removed.
+#
+# Created by cryptopool.builders for crypto use. Updated by DebitMyData for its pool.
 #####################################################
 
 source /etc/functions.sh
-source $STORAGE_ROOT/yiimp/.yiimp.conf
-cd $HOME/multipool/yiimp_single
+source /etc/multipool.conf
+source "$STORAGE_ROOT/yiimp/.yiimp.conf"
+cd "$HOME/multipool/yiimp_single" || exit 1
 
-# NGINX install
-echo -e " Installing NGINX...$COL_RESET"
-
-# Remove any old nginx.org repositories
+echo -e " Setting up NGINX...$COL_RESET"
+# Remove any old nginx.org repositories: Ubuntu 24.04's own nginx is the one used
 sudo rm -f /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
-
-hide_output sudo apt-get update
-
 apt_install nginx
 
-sudo mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old 2>/dev/null
-
-sudo cp -r nginx_confs/nginx.conf /etc/nginx/
+if [ -f /etc/nginx/nginx.conf ] && [ ! -f /etc/nginx/nginx.conf.old ]; then
+	sudo mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
+fi
+sudo cp nginx_confs/nginx.conf /etc/nginx/nginx.conf
 
 sudo rm -f /etc/nginx/conf.d/default.conf
 sudo rm -f /etc/nginx/sites-available/default
 sudo rm -f /etc/nginx/sites-enabled/default
 
-echo -e "$GREEN NGINX installation complete...$COL_RESET"
-
 restart_service nginx
-restart_service php7.4-fpm
+restart_service "php${PHP_VERSION}-fpm"
+echo -e "$GREEN NGINX set up...$COL_RESET"
 
-cd $HOME/multipool/yiimp_single
+cd "$HOME/multipool/yiimp_single" || exit 1

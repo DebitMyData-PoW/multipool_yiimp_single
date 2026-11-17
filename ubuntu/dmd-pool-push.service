@@ -1,0 +1,19 @@
+# The pool app's notifications: new blocks, payouts and test notices, every 2 seconds.
+# Runs as the user of the blocks job (the only user that can read the notifications key).
+# dmd.sh writes it to /etc/systemd/system/dmd-pool-push.service, with the __PLACEHOLDERS__
+# filled in.
+[Unit]
+Description=DMD Pool notifications (pool app)
+After=network-online.target mariadb.service memcached.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__JOBS_USER__
+WorkingDirectory=__SITE__/web
+ExecStart=/usr/bin/php __SITE__/web/runconsole.php cronjob/runPush
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

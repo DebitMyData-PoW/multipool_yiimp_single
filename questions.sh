@@ -1,189 +1,173 @@
 #####################################################
+# The install's questions. The answers go to $STORAGE_ROOT/yiimp/.yiimp.conf, which the other
+# steps and the pool's commands read. It holds the passwords: only the install user can read it.
+#
 # Source https://mailinabox.email/ https://github.com/mail-in-a-box/mailinabox
-# Updated by cryptopool.builders-OLD-VERSION for crypto use...
+# Updated by cryptopool.builders for crypto use, and by DebitMyData for its pool.
 #####################################################
 
 source /etc/functions.sh
 source /etc/multipool.conf
-source $HOME/multipool/yiimp_single/.wireguard.install.cnf
-if [[ ("$wireguard" == "true") ]]; then
-source $STORAGE_ROOT/yiimp/.wireguard.conf
-fi
 
-if [[ ("$wireguard" == "true") ]]; then
-message_box "Ultimate Crypto-Server Setup Installer" \
-"You have choosen to install YiiMP Single Server with WireGuard!
-\n\nThis option will install all componets of YiiMP on a single server along with WireGuard so you can easily add additional servers in the future.
-\n\nPlease make sure any domain name or sub domain names are pointed to this servers IP prior to running this installer.
-\n\nAfter answering the following questions, setup will be automated.
-\n\nNOTE: If installing on a system with less then 8 GB of RAM you may experience system issues!"
-else
-  message_box "Ultimate Crypto-Server Setup Installer" \
-  "You have choosen to install YiiMP Single Server!
-  \n\nThis option will install all componets of YiiMP on a single server.
-  \n\nPlease make sure any domain name or sub domain names are pointed to this servers IP prior to running this installer.
-  \n\nAfter answering the following questions, setup will be automated.
-  \n\nNOTE: If installing on a system with less then 8 GB of RAM you may experience system issues!"
-fi
-dialog --title "Using Sub-Domain" \
---yesno "Are you using a sub-domain for the main website domain? Example pool.example.com? Make sure the DNS is updated!" 7 60
-response=$?
-case $response in
-   0) UsingSubDomain=yes;;
-   1) UsingSubDomain=no;;
-   255) echo "[ESC] key pressed.";;
-esac
+# The pool's code: DebitMyData's YiiMP. YIIMP_REF picks another branch or tag than the one the
+# install is made for. The PHP 8.3 code is on ubuntu-24.04 until it is merged into next.
+YiiMPRepo='https://github.com/DebitMyData-PoW/debitmydata-yiimp.git'
+YiiMPBranch="${YIIMP_REF:-ubuntu-24.04}"
+# Ubuntu 24.04's own PHP
+PHP_VERSION='8.3'
 
-dialog --title "Install SSL" \
---yesno "Would you like the system to install SSL automatically? If just using the server IP you MUST select NO!" 7 60
-response=$?
-case $response in
-   0) InstallSSL=yes;;
-   1) InstallSSL=no;;
-   255) echo "[ESC] key pressed.";;
-esac
+# ask VARIABLE "title" "prompt" "default" "regex" "what an answer must look like"
+# Asks again until the answer matches; Esc or Cancel stops the install.
+function ask {
+	local name=$1 title=$2 prompt=$3 default=$4 regex=$5 rule=$6 value
+	while true; do
+		input_box "$title" "$prompt" "$default" value
+		if [ "$value_EXITCODE" != 0 ]; then
+			clear
+			echo "Install cancelled."
+			exit 1
+		fi
+		if [[ $value =~ $regex ]]; then
+			printf -v "$name" '%s' "$value"
+			return
+		fi
+		message_box "$title" "$rule"
+		default=$value
+	done
+}
 
-dialog --title "Use AutoExchange" \
---yesno "Would you like the stratum to be built with autoexchange enabled?" 7 60
-response=$?
-case $response in
-   0) AutoExchange=yes;;
-   1) AutoExchange=no;;
-   255) echo "[ESC] key pressed.";;
-esac
+# yes_no VARIABLE "title" "question": yes or no; Esc stops the install.
+function yes_no {
+	local name=$1
+	dialog --title "$2" --yesno "$3" 8 64
+	case $? in
+		0) printf -v "$name" '%s' yes ;;
+		1) printf -v "$name" '%s' no ;;
+		*)
+			clear
+			echo "Install cancelled."
+			exit 1
+			;;
+	esac
+}
 
-dialog --title "Use Dedicated Coin Ports" \
---yesno "Would you like YiiMP to be built with dedicated coin ports?" 7 60
-response=$?
-case $response in
-   0) CoinPort=yes;;
-   1) CoinPort=no;;
-   255) echo "[ESC] key pressed.";;
-esac
+DOMAIN_RE='^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$'
+DOMAIN_RULE='Letters, digits, dots and dashes only, like pool.example.com (or the server IP).'
+# The database passwords go in PHP and in the stratum's config files as they are.
+DB_PASSWORD_RE='^[A-Za-z0-9._-]{16,}$'
+DB_PASSWORD_RULE='At least 16 characters: letters, digits, dot, dash and underscore only.'
+
+message_box "DebitMyData pool installer" \
+	"This installs the DebitMyData pool (YiiMP) on this server: the website, the database and the stratum.
+\n\nPoint the domain names you will use (the website, the stratum) to this server's IP before you continue.
+\n\nThe questions come first, then the install runs by itself (about 20 minutes).
+\n\nNOTE: with less than 4 GB of RAM the server may be slow."
+
+yes_no UsingSubDomain "Using Sub-Domain" \
+	"Is the website on a sub-domain, like pool.example.com? (No: example.com, and www.example.com too.)"
+
+yes_no InstallSSL "Install SSL" \
+	"Get an HTTPS certificate from Let's Encrypt? The domain must already point to this server. If you only use the server IP, choose No."
+
+yes_no BehindCloudflare "Cloudflare" \
+	"Does the website go through Cloudflare (proxied, the orange cloud)? Then nginx is told the visitors' real IPs."
 
 if [ -z "${DomainName}" ]; then
-DEFAULT_DomainName=$(get_publicip_from_web_service 4 || get_default_privateip 4)
-input_box "Domain Name" \
-"Enter your domain name. If using a subdomain enter the full domain as in pool.example.com
-\n\nDo not add www. to the domain name.
-\n\nMake sure the domain is pointed to this server before continuing!
-\n\nIf only using the server IP, enter the IP only!
+	ask DomainName "Domain Name" \
+		"The website's domain. On a sub-domain, the full name, like pool.example.com.
+\n\nNo www. in front.
+\n\nIf you only use the server IP, enter the IP.
 \n\nDomain Name:" \
-${DEFAULT_DomainName} \
-DomainName
-
-if [ -z "${DomainName}" ]; then
-# user hit ESC/cancel
-exit
-fi
+		"$(get_publicip_from_web_service 4 || get_default_privateip 4)" \
+		"$DOMAIN_RE" "$DOMAIN_RULE"
 fi
 
 if [ -z "${StratumURL}" ]; then
-DEFAULT_StratumURL=${DomainName}
-input_box "Stratum URL" \
-"Enter your stratum URL. It is recommended to use another subdomain such as stratum.${DomainName}
-\n\nDo not add www. to the domain name.
-\n\nIf only using the server IP, enter the IP only!
+	ask StratumURL "Stratum URL" \
+		"The address miners connect to. Another sub-domain is best, like stratum.${DomainName}: it must not go through Cloudflare's proxy (DNS only, the grey cloud).
+\n\nIf you only use the server IP, enter the IP.
 \n\nStratum URL:" \
-${DEFAULT_StratumURL} \
-StratumURL
-
-if [ -z "${StratumURL}" ]; then
-# user hit ESC/cancel
-exit
+		"${DomainName}" "$DOMAIN_RE" "$DOMAIN_RULE"
 fi
+
+if [ -z "${AdminEmail}" ]; then
+	# (it goes in the website's settings as it is: no quotes or spaces)
+	if [[ "$InstallSSL" == "yes" ]]; then
+		email_re='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+		email_rule="An email address: Let's Encrypt writes to it before the certificate expires."
+	else
+		email_re='^([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})?$'
+		email_rule='An email address, or nothing.'
+	fi
+	ask AdminEmail "Admin Email" \
+		"The pool admin's email address: Let's Encrypt's notices go to it, and the website shows it as the admin's.
+\n\nAdmin Email:" \
+		"" "$email_re" "$email_rule"
 fi
 
 if [ -z "${PublicIP}" ]; then
-DEFAULT_PublicIP=$(echo $SSH_CLIENT | awk '{ print $1}')
-input_box "Your Public IP" \
-"Enter your public IP from the remote system you will access your admin panel from.
-\n\nWe have guessed your public IP from the IP used to access this system.
-\n\nGo to whatsmyip.org if you are unsure this is your public IP.
+	ask PublicIP "Your Public IP" \
+		"The public IP of the computer you run the admin from (YAAMP_ADMIN_IP), or several separated by commas.
+\n\nGuessed from your SSH connection. To check it, open https://icanhazip.com on that computer.
 \n\nYour Public IP:" \
-${DEFAULT_PublicIP} \
-PublicIP
-
-if [ -z "${PublicIP}" ]; then
-# user hit ESC/cancel
-exit
-fi
+		"$(echo "$SSH_CLIENT" | awk '{ print $1 }')" \
+		'^[0-9A-Fa-f:.,/]+$' 'IP addresses (IPv4 or IPv6), separated by commas.'
 fi
 
-if [ -z "${DBRootPassword}" ]; then
-DEFAULT_DBRootPassword=$(openssl rand -base64 29 | tr -d "=+/")
-input_box "Database Root Password" \
-"Enter your desired database root password.
-\n\nYou may use the system generated password shown.
-\n\nDesired Database Password:" \
-${DEFAULT_DBRootPassword} \
-DBRootPassword
-
-if [ -z "${DBRootPassword}" ]; then
-# user hit ESC/cancel
-exit
+if [ -z "${StratumPort}" ]; then
+	ask StratumPort "DMD Stratum Port" \
+		"The port miners connect to for DMD (SHA-256). It is opened in the firewall.
+\n\nDMD Stratum Port:" \
+		"8700" '^[1-9][0-9]{3,4}$' 'A port number, from 1024 to 65535.'
+	if [ "$StratumPort" -gt 65535 ]; then
+		StratumPort=8700
+	fi
 fi
+
+if [ -z "${AdminUser}" ]; then
+	ask AdminUser "Admin Portal User" \
+		"The admin portal (/site/AdminPortal) asks for a user name and a password (nginx).
+\n\nAdmin user name:" \
+		"pooladmin" '^[a-z][a-z0-9_-]{2,31}$' '3 to 32 characters: lowercase letters, digits, dash and underscore, starting with a letter.'
+fi
+
+if [ -z "${AdminPassword}" ]; then
+	ask AdminPassword "Admin Portal Password" \
+		"The admin portal's password: keep the random one or enter yours. Put it in your password manager.
+\n\nAdmin password:" \
+		"$(openssl rand -base64 24 | tr -d "=+/")" '^[^[:space:]]{16,}$' 'At least 16 characters, no spaces.'
 fi
 
 if [ -z "${PanelUserDBPassword}" ]; then
-DEFAULT_PanelUserDBPassword=$(openssl rand -base64 29 | tr -d "=+/")
-input_box "Database Panel Password" \
-"Enter your desired database panel password.
-\n\nYou may use the system generated password shown.
-\n\nDesired Database Password:" \
-${DEFAULT_PanelUserDBPassword} \
-PanelUserDBPassword
-
-if [ -z "${PanelUserDBPassword}" ]; then
-# user hit ESC/cancel
-exit
-fi
+	ask PanelUserDBPassword "Database Panel Password" \
+		"The database password of the website (user panel). Keep the random one.
+\n\nPanel database password:" \
+		"$(openssl rand -base64 29 | tr -d "=+/")" "$DB_PASSWORD_RE" "$DB_PASSWORD_RULE"
 fi
 
 if [ -z "${StratumUserDBPassword}" ]; then
-DEFAULT_StratumUserDBPassword=$(openssl rand -base64 29 | tr -d "=+/")
-input_box "Database Stratum Password" \
-"Enter your desired database stratum password.
-\n\nYou may use the system generated password shown.
-\n\nDesired Database Password:" \
-${DEFAULT_StratumUserDBPassword} \
-StratumUserDBPassword
-
-if [ -z "${StratumUserDBPassword}" ]; then
-# user hit ESC/cancel
-exit
-fi
-fi
-
-if [ -z "${AdminPanel}" ]; then
-DEFAULT_AdminPanel=AdminPortal
-input_box "Admin Panel Location" \
-"Enter your desired location name for admin access..
-\n\nOnce set you will access the YiiMP admin at ${DomainName}/site/AdminPortal
-\n\nDesired Admin Panel Location:" \
-${DEFAULT_AdminPanel} \
-AdminPanel
-
-if [ -z "${AdminPanel}" ]; then
-# user hit ESC/cancel
-exit
-fi
+	ask StratumUserDBPassword "Database Stratum Password" \
+		"The database password of the stratum (user stratum). Keep the random one.
+\n\nStratum database password:" \
+		"$(openssl rand -base64 29 | tr -d "=+/")" "$DB_PASSWORD_RE" "$DB_PASSWORD_RULE"
 fi
 
 clear
 
 dialog --title "Verify Your Responses" \
---yesno "Please verify your answers to continue setup:
+	--yesno "Please verify your answers to continue setup:
 
-Dedicated Coin Ports : ${CoinPort}
-AutoExchange : ${AutoExchange}
 Using Sub-Domain : ${UsingSubDomain}
 Install SSL      : ${InstallSSL}
+Cloudflare       : ${BehindCloudflare}
 Domain Name      : ${DomainName}
 Stratum URL      : ${StratumURL}
+Admin Email      : ${AdminEmail}
 Your Public IP   : ${PublicIP}
-Admin Location   : ${AdminPanel}" 15 60
-
+DMD Stratum Port : ${StratumPort}
+Admin Portal     : /site/AdminPortal
+Admin User       : ${AdminUser}
+Admin Password   : ${AdminPassword}" 18 70
 
 # Get exit status
 # 0 means user hit [yes] button.
@@ -192,56 +176,47 @@ Admin Location   : ${AdminPanel}" 15 60
 response=$?
 case $response in
 
-0)
-# Save the global options in $STORAGE_ROOT/yiimp/.yiimp.conf so that standalone
-# tools know where to look for data.
-if [[ ("$wireguard" == "true") ]]; then
-echo 'STORAGE_USER='"${STORAGE_USER}"'
-STORAGE_ROOT='"${STORAGE_ROOT}"'
-DomainName='"${DomainName}"'
-StratumURL='"${StratumURL}"'
-PublicIP='"${PublicIP}"'
-DBRootPassword='"'"''"${DBRootPassword}"''"'"'
-AdminPanel='"${AdminPanel}"'
-PanelUserDBPassword='"'"''"${PanelUserDBPassword}"''"'"'
-StratumUserDBPassword='"'"''"${StratumUserDBPassword}"''"'"'
-UsingSubDomain='"${UsingSubDomain}"'
-InstallSSL='"${InstallSSL}"'
-CoinPort='"${CoinPort}"'
-AutoExchange='"${AutoExchange}"'
-DBInternalIP='"${DBInternalIP}"'
-# Unless you do some serious modifications this installer will not work with any other repo of yiimp!
-YiiMPRepo='https://github.com/le2Ks/yiimp.git'
-' | sudo -E tee $STORAGE_ROOT/yiimp/.yiimp.conf >/dev/null 2>&1
-else
-echo 'STORAGE_USER='"${STORAGE_USER}"'
-  STORAGE_ROOT='"${STORAGE_ROOT}"'
-  DomainName='"${DomainName}"'
-  StratumURL='"${StratumURL}"'
-  PublicIP='"${PublicIP}"'
-  DBRootPassword='"'"''"${DBRootPassword}"''"'"'
-  AdminPanel='"${AdminPanel}"'
-  PanelUserDBPassword='"'"''"${PanelUserDBPassword}"''"'"'
-  StratumUserDBPassword='"'"''"${StratumUserDBPassword}"''"'"'
-  UsingSubDomain='"${UsingSubDomain}"'
-  InstallSSL='"${InstallSSL}"'
-  CoinPort='"${CoinPort}"'
-  AutoExchange='"${AutoExchange}"'
-  # Unless you do some serious modifications this installer will not work with any other repo of yiimp!
-  YiiMPRepo='https://github.com/le2Ks/yiimp.git'
-  ' | sudo -E tee $STORAGE_ROOT/yiimp/.yiimp.conf >/dev/null 2>&1
-fi;;
-1)
+	0)
+		# Save the answers in $STORAGE_ROOT/yiimp/.yiimp.conf so that standalone tools know
+		# where to look for data. Only this user may read it: it holds the passwords.
+		{
+			echo '# The answers of the DebitMyData pool install (multipool_yiimp_single/questions.sh).'
+			echo '# It holds passwords: keep it readable only by its owner.'
+			printf '%s=%q\n' \
+				STORAGE_USER "${STORAGE_USER}" \
+				STORAGE_ROOT "${STORAGE_ROOT}" \
+				DomainName "${DomainName}" \
+				StratumURL "${StratumURL}" \
+				AdminEmail "${AdminEmail}" \
+				PublicIP "${PublicIP}" \
+				StratumPort "${StratumPort}" \
+				AdminPanel AdminPortal \
+				AdminUser "${AdminUser}" \
+				AdminPassword "${AdminPassword}" \
+				PanelUserDBPassword "${PanelUserDBPassword}" \
+				StratumUserDBPassword "${StratumUserDBPassword}" \
+				UsingSubDomain "${UsingSubDomain}" \
+				InstallSSL "${InstallSSL}" \
+				BehindCloudflare "${BehindCloudflare}" \
+				CoinSymbol DMD \
+				PHP_VERSION "${PHP_VERSION}" \
+				YiiMPRepo "${YiiMPRepo}" \
+				YiiMPBranch "${YiiMPBranch}"
+		} | sudo tee "$STORAGE_ROOT/yiimp/.yiimp.conf" >/dev/null
+		sudo chown "$(id -un):$(id -gn)" "$STORAGE_ROOT/yiimp/.yiimp.conf"
+		sudo chmod 600 "$STORAGE_ROOT/yiimp/.yiimp.conf"
+		;;
 
-clear
-bash $(basename $0) && exit;;
+	1)
+		clear
+		bash "$(basename "$0")" && exit
+		;;
 
-255)
-clear
-echo "User canceled installation"
-exit 0
-;;
+	255)
+		clear
+		echo "User canceled installation"
+		exit 0
+		;;
 esac
 
-
-cd $HOME/multipool/yiimp_single
+cd "$HOME/multipool/yiimp_single" || exit 1

@@ -1,76 +1,72 @@
-#!/usr/bin/env bash 
-
+#!/usr/bin/env bash
 #####################################################
-# Created by cryptopool.builders-OLD-VERSION for crypto use...
+# blocknotify and the stratum, built from the pool's code, with their config files filled in
+# (the database's login, blocknotify's password, the stratum's address).
+#
+# Created by cryptopool.builders for crypto use. Updated by DebitMyData for its pool.
 #####################################################
 
 source /etc/functions.sh
-source $STORAGE_ROOT/yiimp/.yiimp.conf
-source $HOME/multipool/yiimp_single/.wireguard.install.cnf
-echo -e " Building blocknotify and stratum...$COL_RESET"
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/blocknotify
-blckntifypass=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
-sudo sed -i 's/tu8tu5/'${blckntifypass}'/' blocknotify.cpp
-hide_output sudo make
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/stratum/iniparser
-hide_output sudo apt-get install -y libbrotli-dev
-hide_output sudo apt-get install -y libssh-dev
-hide_output sudo make
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/stratum
-if [[ ("$AutoExchange" == "yes") ]]; then
-sudo sed -i 's/CFLAGS += -DNO_EXCHANGE/#CFLAGS += -DNO_EXCHANGE/' $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/stratum/Makefile
-fi
-hide_output sudo make
-echo -e " Building stratum folder structure and copying files...$COL_RESET"
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/stratum
-sudo cp -a config.sample/. $STORAGE_ROOT/yiimp/site/stratum/config
-sudo cp -r stratum $STORAGE_ROOT/yiimp/site/stratum
-sudo cp -r run.sh $STORAGE_ROOT/yiimp/site/stratum
-cd $STORAGE_ROOT/yiimp/yiimp_setup/yiimp
-sudo cp -r $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/blocknotify/blocknotify $STORAGE_ROOT/yiimp/site/stratum
-sudo cp -r $STORAGE_ROOT/yiimp/yiimp_setup/yiimp/blocknotify/blocknotify /usr/bin
+source /etc/multipool.conf
+source "$STORAGE_ROOT/yiimp/.yiimp.conf"
 
-sudo rm -r $STORAGE_ROOT/yiimp/site/stratum/config/run.sh
+YIIMP_SRC="$STORAGE_ROOT/yiimp/yiimp_setup/yiimp"
+STRATUM_DIR="$STORAGE_ROOT/yiimp/site/stratum"
 
+echo -e " Building blocknotify and the stratum (can be long)...$COL_RESET"
+blckntifypass=$(openssl rand -hex 16)
+cd "$YIIMP_SRC/blocknotify" || exit 1
+sudo sed -i "s/tu8tu5/${blckntifypass}/" blocknotify.cpp
+hide_output sudo make -j"$(nproc)"
+cd "$YIIMP_SRC/stratum/iniparser" || exit 1
+hide_output sudo make -j"$(nproc)"
+# No exchange code in it (the Makefile's -DNO_EXCHANGE): this pool does not trade.
+cd "$YIIMP_SRC/stratum" || exit 1
+hide_output sudo make -j"$(nproc)"
+
+echo -e " Copying the stratum and its config files...$COL_RESET"
+sudo mkdir -p "$STRATUM_DIR/config"
+sudo cp -a config.sample/. "$STRATUM_DIR/config"
+sudo install -m 755 stratum "$STRATUM_DIR/stratum"
+sudo install -m 755 "$YIIMP_SRC/blocknotify/blocknotify" "$STRATUM_DIR/blocknotify"
+sudo install -m 755 "$YIIMP_SRC/blocknotify/blocknotify" /usr/bin/blocknotify
+
+# config/run.sh <algo>: runs one stratum, again if it stops
+sudo rm -f "$STRATUM_DIR/config/run.sh"
 echo '#!/usr/bin/env bash
 source /etc/multipool.conf
 source $STORAGE_ROOT/yiimp/.yiimp.conf
 ulimit -n 10240
 ulimit -u 10240
-cd '""''"${STORAGE_ROOT}"''""'/yiimp/site/stratum
+cd '"${STRATUM_DIR}"'
 while true; do
 ./stratum config/$1
 sleep 2
 done
-exec bash' | sudo -E tee $STORAGE_ROOT/yiimp/site/stratum/config/run.sh >/dev/null 2>&1
+exec bash' | sudo tee "$STRATUM_DIR/config/run.sh" >/dev/null
+sudo chmod +x "$STRATUM_DIR/config/run.sh"
 
-sudo chmod +x $STORAGE_ROOT/yiimp/site/stratum/config/run.sh
-
-sudo rm -r $STORAGE_ROOT/yiimp/site/stratum/run.sh
-
+# run.sh <algo>, from the stratum's folder
 echo '#!/usr/bin/env bash
 source /etc/multipool.conf
 source $STORAGE_ROOT/yiimp/.yiimp.conf
-cd '""''"${STORAGE_ROOT}"''""'/yiimp/site/stratum/config/ && ./run.sh $*
-' | sudo -E tee $STORAGE_ROOT/yiimp/site/stratum/run.sh >/dev/null 2>&1
-sudo chmod +x $STORAGE_ROOT/yiimp/site/stratum/run.sh
-echo -e " Updating stratum config files with database connection info...$COL_RESET"
-cd $STORAGE_ROOT/yiimp/site/stratum/config
-sudo sed -i 's/password = tu8tu5/password = '${blckntifypass}'/g' *.conf
-sudo sed -i 's/server = yaamp.com/server = '${StratumURL}'/g' *.conf
-if [[ ("$wireguard" == "true") ]]; then
-  sudo sed -i 's/host = yaampdb/host = '${DBInternalIP}'/g' *.conf
-else
-sudo sed -i 's/host = yaampdb/host = localhost/g' *.conf
-fi
-sudo sed -i 's/database = yaamp/database = yiimpfrontend/g' *.conf
-sudo sed -i 's/username = root/username = stratum/g' *.conf
-sudo sed -i 's/password = patofpaq/password = '${StratumUserDBPassword}'/g' *.conf
+cd '"${STRATUM_DIR}"'/config/ && ./run.sh $*
+' | sudo tee "$STRATUM_DIR/run.sh" >/dev/null
+sudo chmod +x "$STRATUM_DIR/run.sh"
 
-#set permissions
-sudo setfacl -m u:$USER:rwx $STORAGE_ROOT/yiimp/site/stratum/
-sudo setfacl -m u:$USER:rwx $STORAGE_ROOT/yiimp/site/stratum/config
+echo -e " Filling in the stratum config files...$COL_RESET"
+cd "$STRATUM_DIR/config" || exit 1
+sudo sed -i "s/password = tu8tu5/password = ${blckntifypass}/g" ./*.conf
+sudo sed -i "s/server = yaamp.com/server = ${StratumURL}/g" ./*.conf
+sudo sed -i 's/host = yaampdb/host = localhost/g' ./*.conf
+sudo sed -i 's/database = yaamp/database = yiimpfrontend/g' ./*.conf
+sudo sed -i 's/username = root/username = stratum/g' ./*.conf
+sudo sed -i "s/password = patofpaq/password = ${StratumUserDBPassword}/g" ./*.conf
+
+# The install user runs the stratum; the config files hold the database password: only that
+# user (and the www-data group it is in) reads them.
+sudo chown -R "$(id -un):www-data" "$STRATUM_DIR"
+sudo chmod 640 "$STRATUM_DIR"/config/*.conf
 
 echo -e "$GREEN Stratum build complete...$COL_RESET"
-cd $HOME/multipool/yiimp_single
+cd "$HOME/multipool/yiimp_single" || exit 1

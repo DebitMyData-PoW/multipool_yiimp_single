@@ -2,7 +2,7 @@
 
 
 #####################################################
-# Created by cryptopool.builders-OLD-VERSION for crypto use...
+# Created by cryptopool.builders for crypto use...
 #####################################################
 # Needs to be ran after the first reboot of the system after permissions are set
 #####################################################
@@ -19,4 +19,4 @@ sudo chmod 777 $STORAGE_ROOT/yiimp/site/log/debug.log
 # Delete me no longer needed after it runs the first time
 
 sudo rm -r $STORAGE_ROOT/yiimp/first_boot.sh
-cd $HOME/multipool/yiimp_single
+cd "$HOME/multipool/yiimp_single" || exit 1

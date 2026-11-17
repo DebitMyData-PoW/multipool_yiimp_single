@@ -21,7 +21,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #####################################################
-# Updated by cryptopool.builders-OLD-VERSION for crypto use...
+# Updated by cryptopool.builders for crypto use...
 #####################################################
 
 clear
@@ -33,8 +33,8 @@ if [ -z "$DISTRIB_DESCRIPTION" ] && [ -x /usr/bin/lsb_release ]; then
         DISTRIB_DESCRIPTION=$(lsb_release -s -d)
 fi
 
-figlet -w 100 "Mining Pool"
+figlet -w 100 "DebitMyData Pool"
 printf "\n"
 
-printf "Welcome to %s (%s).\n" "$DISTRIB_DESCRIPTION" "Crypto Version"
+printf "Welcome to %s (%s).\n" "$DISTRIB_DESCRIPTION" "DebitMyData pool server"
 printf "\n"
