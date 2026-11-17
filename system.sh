@@ -9,10 +9,12 @@
 clear
 source /etc/functions.sh
 source /etc/multipool.conf
-source "$STORAGE_ROOT/yiimp/.yiimp.conf"
 
+# The pool's folders, open to the install user and the website first: on Ubuntu 24.04 a new
+# user's home folder (/home/crypto-data) is closed to everyone else.
 sudo chmod 755 /home/crypto-data >/dev/null 2>&1
-sudo chmod 755 "$STORAGE_ROOT/yiimp" >/dev/null 2>&1
+sudo chmod 755 "$STORAGE_ROOT" "$STORAGE_ROOT/yiimp" >/dev/null 2>&1
+source "$STORAGE_ROOT/yiimp/.yiimp.conf"
 
 echo -e " Setting the time zone to UTC...$COL_RESET"
 sudo ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
