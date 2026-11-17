@@ -51,29 +51,28 @@ printf '%s:%s\n' "$AdminUser" "$(printf '%s\n' "$AdminPassword" | openssl passwd
 sudo chown root:www-data /etc/nginx/.pma_pass_panel
 sudo chmod 640 /etc/nginx/.pma_pass_panel
 
-# Behind Cloudflare, nginx and the website see Cloudflare's servers: take the visitor's IP from
-# CF-Connecting-IP, only on requests that come from Cloudflare's addresses.
-if [[ "$BehindCloudflare" == "yes" ]]; then
-	echo -e " Taking the visitors' real IPs from Cloudflare...$COL_RESET"
-	CF_RANGES="$(curl -fsS --max-time 20 https://www.cloudflare.com/ips-v4; echo; curl -fsS --max-time 20 https://www.cloudflare.com/ips-v6)"
-	if [ "$(echo "$CF_RANGES" | grep -c /)" -ge 10 ]; then
-		{
-			echo "# Visitors' real IPs from Cloudflare (https://www.cloudflare.com/ips/), $(date -u +%Y-%m-%d)"
-			echo "$CF_RANGES" | grep / | sed 's/^/set_real_ip_from /; s/$/;/'
-			echo "real_ip_header CF-Connecting-IP;"
-		} | sudo tee /etc/nginx/conf.d/cloudflare-real-ip.conf >/dev/null
-	else
-		echo -e "$YELLOW Cloudflare's address list could not be downloaded: see the README (Cloudflare) to add it later.$COL_RESET"
-	fi
+# Behind Cloudflare: nginx takes the visitors' real IPs from Cloudflare, and only Cloudflare
+# reaches ports 80 and 443.
+if [[ "$SSLMode" == "cloudflare" ]]; then
+	source "$INSTALL_DIR/cloudflare.sh"
 fi
 
 hide_output sudo nginx -t
 restart_service nginx
 restart_service "php${PHP_VERSION}-fpm"
 
-if [[ "$InstallSSL" == "yes" ]]; then
-	source "$INSTALL_DIR/https.sh"
-fi
+case "$SSLMode" in
+	cloudflare)
+		# Cloudflare's origin certificate (questions.sh took it)
+		nginx_conf site_https.conf | sudo tee "/etc/nginx/sites-available/${DomainName}.conf" >/dev/null
+		hide_output sudo nginx -t
+		restart_service nginx
+		echo -e "$GREEN HTTPS is on, with Cloudflare's origin certificate...$COL_RESET"
+		;;
+	letsencrypt)
+		source "$INSTALL_DIR/https.sh"
+		;;
+esac
 
 echo -e " Creating the YiiMP settings files...$COL_RESET"
 

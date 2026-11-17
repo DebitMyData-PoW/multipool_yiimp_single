@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #####################################################
-# HTTPS for the website: Let's Encrypt's certificate (certbot, through the website's folder),
-# then the HTTPS nginx site, and nginx reloads after each renewal. web.sh runs it during the
-# install. If Let's Encrypt refused then (the domain did not point to this server yet), run it
-# again once it does:
+# HTTPS for the website with Let's Encrypt (the website reached directly, DNS only): the
+# certificate (certbot, through the website's folder), then the HTTPS nginx site, and nginx
+# reloads after each renewal. web.sh runs it during the install. If Let's Encrypt refused then
+# (the domain did not point to this server yet), run it again once it does:
 #
 #   bash ~/multipool/yiimp_single/https.sh
 #
@@ -13,6 +13,7 @@
 source /etc/functions.sh
 source /etc/multipool.conf
 source "$STORAGE_ROOT/yiimp/.yiimp.conf"
+SSLMode=letsencrypt
 source "$HOME/multipool/yiimp_single/nginx_site.sh"
 
 if [ -z "${AdminEmail}" ]; then
@@ -39,6 +40,7 @@ if sudo certbot certonly --webroot -w "$SITE/web" --non-interactive --agree-tos 
 	hide_output sudo nginx -t
 	restart_service nginx
 	InstallSSL=yes
+	SSLMode=letsencrypt
 	echo -e "$GREEN HTTPS is on: https://${DomainName}$COL_RESET"
 else
 	echo -e "$RED Let's Encrypt refused the certificate: the website stays on HTTP for now.$COL_RESET"
@@ -46,10 +48,12 @@ else
 	echo
 	echo "Once ${DomainName} points to this server, run: bash ~/multipool/yiimp_single/https.sh"
 	InstallSSL=no
+	SSLMode=none
 	sleep 10
 fi
 rm -f "$CERTBOT_LOG"
 # (sed -i writes next to the file, in a folder of root's; the file stays this user's only)
-sudo sed -i "s/^InstallSSL=.*/InstallSSL=${InstallSSL}/" "$STORAGE_ROOT/yiimp/.yiimp.conf"
+sudo sed -i -e "s/^InstallSSL=.*/InstallSSL=${InstallSSL}/" -e "s/^SSLMode=.*/SSLMode=${SSLMode}/" \
+	"$STORAGE_ROOT/yiimp/.yiimp.conf"
 sudo chown "$(id -un):$(id -gn)" "$STORAGE_ROOT/yiimp/.yiimp.conf"
 sudo chmod 600 "$STORAGE_ROOT/yiimp/.yiimp.conf"

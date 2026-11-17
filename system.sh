@@ -36,10 +36,13 @@ if [ -z "$DISABLE_FIREWALL" ]; then
 	echo -e " Installing the firewall (UFW)...$COL_RESET"
 	apt_install ufw
 
-	# Allow incoming connections.
+	# Allow incoming connections. Behind Cloudflare, only Cloudflare's addresses reach the
+	# website (cloudflare.sh, from web.sh).
 	ufw_allow ssh
-	ufw_allow http
-	ufw_allow https
+	if [[ "$SSLMode" != "cloudflare" ]]; then
+		ufw_allow http
+		ufw_allow https
+	fi
 
 	# ssh might be running on an alternate port. Use sshd -T to dump sshd's
 	# settings, find the port it is supposedly running on, and open that port too.

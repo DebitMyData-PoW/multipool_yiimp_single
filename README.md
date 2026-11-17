@@ -9,12 +9,13 @@ PHP 8.3. It does nothing on its own: start from
 
 | File | What it does |
 | --- | --- |
-| `questions.sh` | The questions; the answers go to `/home/crypto-data/yiimp/.yiimp.conf` (only the install user reads it) |
+| `questions.sh` | The questions, and the Cloudflare origin certificate (`/etc/ssl/cloudflare/`); the answers go to `/home/crypto-data/yiimp/.yiimp.conf` (only the install user reads it) |
 | `system.sh` | Updates, Ubuntu's PHP 8.3, nginx, memcached, the build tools, the firewall; downloads the pool's code |
 | `db.sh` | MariaDB 10.11, the database and its two users, YiiMP's tables, then DebitMyData's (PPLNS, notifications) |
 | `nginx_upgrade.sh` | nginx's main config (`nginx_confs/nginx.conf`) |
 | `web.sh` | The website, its nginx site (`nginx_confs/`, `nginx_site.sh`), the admin portal's password, Cloudflare's real IPs, the settings, the jobs |
-| `https.sh` | HTTPS from Let's Encrypt (run from `web.sh`; run it again later if Let's Encrypt refused) |
+| `cloudflare.sh` | Behind Cloudflare: the visitors' real IPs in nginx, and only Cloudflare on ports 80 and 443 (run from `web.sh`; run it again if Cloudflare changes its addresses) |
+| `https.sh` | HTTPS from Let's Encrypt, without Cloudflare (run from `web.sh`; run it again later if Let's Encrypt refused) |
 | `stratum.sh` | Builds blocknotify and the stratum; fills in their config files |
 | `dmd.sh` | The DMD stratum port with PPLNS (`dmd.sha.conf`), the firewall open on it, the notifications' keys and service |
 | `daemon.sh` | What a coin daemon build needs (DMD Core 1.3: CMake) |

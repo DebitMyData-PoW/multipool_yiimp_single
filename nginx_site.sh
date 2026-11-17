@@ -13,11 +13,20 @@ if [[ "$UsingSubDomain" == "yes" ]]; then
 else
 	SERVER_NAMES="${DomainName} www.${DomainName}"
 fi
+# The HTTPS certificate: Cloudflare's origin certificate, or Let's Encrypt's
+if [[ "$SSLMode" == "cloudflare" ]]; then
+	SSL_CERT="/etc/ssl/cloudflare/${DomainName}.pem"
+	SSL_KEY="/etc/ssl/cloudflare/${DomainName}.key"
+else
+	SSL_CERT="/etc/letsencrypt/live/${DomainName}/fullchain.pem"
+	SSL_KEY="/etc/letsencrypt/live/${DomainName}/privkey.pem"
+fi
 
 # (without the IPv6 listen lines on a server whose kernel has no IPv6: nginx would not start)
 function nginx_conf {
 	sed -e "s|__DOMAIN__|${DomainName}|g" -e "s|__SERVER_NAMES__|${SERVER_NAMES}|g" \
 		-e "s|__WEB_ROOT__|${WEB_ROOT}|g" -e "s|__LOG_DIR__|${SITE}/log|g" \
-		-e "s|__PHP_SOCKET__|${PHP_SOCKET}|g" "$NGINX_CONFS/$1" |
+		-e "s|__PHP_SOCKET__|${PHP_SOCKET}|g" -e "s|__SSL_CERT__|${SSL_CERT}|g" \
+		-e "s|__SSL_KEY__|${SSL_KEY}|g" "$NGINX_CONFS/$1" |
 		if [ -e /proc/net/if_inet6 ]; then cat; else sed '/listen \[::\]/d'; fi
 }

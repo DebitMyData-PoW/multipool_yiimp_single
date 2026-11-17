@@ -66,13 +66,25 @@ message_box "DebitMyData pool installer" \
 yes_no UsingSubDomain "Using Sub-Domain" \
 	"Is the website on a sub-domain, like pool.example.com? (No: example.com, and www.example.com too.)"
 
-yes_no InstallSSL "Install SSL" \
-	"Get an HTTPS certificate from Let's Encrypt? The domain must already point to this server. If you only use the server IP, choose No."
+# How visitors reach the website, and its HTTPS certificate
+SSLMode=$(dialog --stdout --title "Website and HTTPS" --default-item cloudflare \
+	--menu "How do visitors reach the website?" 14 76 3 \
+	cloudflare "Through Cloudflare (proxied): Cloudflare origin certificate" \
+	letsencrypt "Directly (DNS only): Let's Encrypt certificate" \
+	none "Directly, HTTP only (the server's IP, no domain)")
+case "$SSLMode" in
+	cloudflare | letsencrypt | none) ;;
+	*)
+		clear
+		echo "Install cancelled."
+		exit 1
+		;;
+esac
+# (the older answers, which the other steps and tools read)
+InstallSSL=$([[ "$SSLMode" == "none" ]] && echo no || echo yes)
+BehindCloudflare=$([[ "$SSLMode" == "cloudflare" ]] && echo yes || echo no)
 
-yes_no BehindCloudflare "Cloudflare" \
-	"Does the website go through Cloudflare (proxied, the orange cloud)? Then nginx is told the visitors' real IPs."
-
-if [ -z "${DomainName}" ]; then
+while [ -z "${DomainName}" ]; do
 	ask DomainName "Domain Name" \
 		"The website's domain. On a sub-domain, the full name, like pool.example.com.
 \n\nNo www. in front.
@@ -80,6 +92,60 @@ if [ -z "${DomainName}" ]; then
 \n\nDomain Name:" \
 		"$(get_publicip_from_web_service 4 || get_default_privateip 4)" \
 		"$DOMAIN_RE" "$DOMAIN_RULE"
+	# a certificate is for a name, not an IP
+	if [[ "$SSLMode" != "none" && "$DomainName" =~ ^[0-9.]+$ ]]; then
+		message_box "Domain Name" "HTTPS needs the website's name, like pool.example.com, not an IP. (For the IP only, go back and choose HTTP only.)"
+		DomainName=""
+	fi
+done
+
+# The Cloudflare origin certificate: made in Cloudflare's dashboard, pasted here once.
+if [[ "$SSLMode" == "cloudflare" ]]; then
+	CF_CERT="/etc/ssl/cloudflare/${DomainName}.pem"
+	CF_KEY="/etc/ssl/cloudflare/${DomainName}.key"
+	CF_NAMES="${DomainName}"
+	[[ "$UsingSubDomain" == "yes" ]] || CF_NAMES="${DomainName} www.${DomainName}"
+
+	# Prints what is wrong with the certificate and its key, or nothing when they are right.
+	function cloudflare_cert_problem {
+		sudo test -s "$CF_CERT" || { echo "There is no certificate in $CF_CERT."; return; }
+		sudo test -s "$CF_KEY" || { echo "There is no private key in $CF_KEY."; return; }
+		sudo openssl x509 -in "$CF_CERT" -noout 2>/dev/null || { echo "$CF_CERT is not a certificate (PEM)."; return; }
+		sudo openssl pkey -in "$CF_KEY" -noout 2>/dev/null || { echo "$CF_KEY is not a private key (PEM)."; return; }
+		[ "$(sudo openssl x509 -in "$CF_CERT" -noout -pubkey)" == "$(sudo openssl pkey -in "$CF_KEY" -pubout)" ] ||
+			{ echo "The private key is not the certificate's."; return; }
+		sudo openssl x509 -in "$CF_CERT" -noout -checkend 86400 >/dev/null || { echo "The certificate has expired."; return; }
+		local name
+		for name in $CF_NAMES; do
+			sudo openssl x509 -in "$CF_CERT" -noout -checkhost "$name" | grep -q "does match" ||
+				{ echo "The certificate is not for $name."; return; }
+		done
+	}
+
+	sudo mkdir -p /etc/ssl/cloudflare
+	sudo chmod 700 /etc/ssl/cloudflare
+	CF_PROBLEM=$(cloudflare_cert_problem)
+	while [ -n "$CF_PROBLEM" ]; do
+		message_box "Cloudflare Origin Certificate" \
+			"$CF_PROBLEM
+\n\nIn Cloudflare, for your domain: SSL/TLS, Origin Server, Create Certificate. Keep \"Generate private key and CSR with Cloudflare\" (RSA), the host names ${CF_NAMES} (Cloudflare's default, the domain and *.domain, covers them), 15 years, and the PEM format.
+\n\nThe editor (nano) then opens twice. First paste the Origin Certificate, then the Private Key, each from -----BEGIN to -----END. Save with Ctrl+O then Enter, and leave with Ctrl+X.
+\n\nCloudflare shows the private key only once: keep it in your password manager."
+		sudo nano "$CF_CERT"
+		sudo nano "$CF_KEY"
+		CF_PROBLEM=$(cloudflare_cert_problem)
+		if [ -n "$CF_PROBLEM" ]; then
+			dialog --title "Cloudflare Origin Certificate" --yesno "$CF_PROBLEM\n\nTry again?" 8 70 || {
+				clear
+				echo "Install cancelled: the Cloudflare origin certificate is not right yet."
+				exit 1
+			}
+		fi
+	done
+	# Only root (and nginx's master process, which runs as root) reads the key.
+	sudo chown root:root "$CF_CERT" "$CF_KEY"
+	sudo chmod 644 "$CF_CERT"
+	sudo chmod 600 "$CF_KEY"
 fi
 
 if [ -z "${StratumURL}" ]; then
@@ -92,7 +158,7 @@ fi
 
 if [ -z "${AdminEmail}" ]; then
 	# (it goes in the website's settings as it is: no quotes or spaces)
-	if [[ "$InstallSSL" == "yes" ]]; then
+	if [[ "$SSLMode" == "letsencrypt" ]]; then
 		email_re='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 		email_rule="An email address: Let's Encrypt writes to it before the certificate expires."
 	else
@@ -100,7 +166,7 @@ if [ -z "${AdminEmail}" ]; then
 		email_rule='An email address, or nothing.'
 	fi
 	ask AdminEmail "Admin Email" \
-		"The pool admin's email address: Let's Encrypt's notices go to it, and the website shows it as the admin's.
+		"The pool admin's email address: the website shows it as the admin's (and Let's Encrypt writes to it, with a Let's Encrypt certificate).
 \n\nAdmin Email:" \
 		"" "$email_re" "$email_rule"
 fi
@@ -158,8 +224,7 @@ dialog --title "Verify Your Responses" \
 	--yesno "Please verify your answers to continue setup:
 
 Using Sub-Domain : ${UsingSubDomain}
-Install SSL      : ${InstallSSL}
-Cloudflare       : ${BehindCloudflare}
+HTTPS            : ${SSLMode}
 Domain Name      : ${DomainName}
 Stratum URL      : ${StratumURL}
 Admin Email      : ${AdminEmail}
@@ -196,6 +261,7 @@ case $response in
 				PanelUserDBPassword "${PanelUserDBPassword}" \
 				StratumUserDBPassword "${StratumUserDBPassword}" \
 				UsingSubDomain "${UsingSubDomain}" \
+				SSLMode "${SSLMode}" \
 				InstallSSL "${InstallSSL}" \
 				BehindCloudflare "${BehindCloudflare}" \
 				CoinSymbol DMD \

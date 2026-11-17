@@ -61,6 +61,11 @@ fi
 echo "Its user name and password, and the database passwords, are in $STORAGE_ROOT/yiimp/.yiimp.conf"
 echo "(readable only by $(id -un))."
 echo
+if [[ "$SSLMode" == "cloudflare" ]]; then
+	echo -e "In Cloudflare, for ${DomainName}: proxied (orange cloud), and SSL/TLS set to$GREEN Full (strict)$COL_RESET."
+	echo "Only Cloudflare's addresses reach ports 80 and 443 (bash ~/multipool/yiimp_single/cloudflare.sh updates them)."
+	echo
+fi
 echo -e "The DMD stratum listens on port ${StratumPort}, open in the firewall. Other ports stay closed:"
 echo -e "to open one, type$GREEN sudo ufw allow <port>$COL_RESET."
 echo
