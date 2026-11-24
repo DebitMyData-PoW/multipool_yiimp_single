@@ -18,7 +18,7 @@ PHP 8.3. It does nothing on its own: start from
 | `https.sh` | HTTPS from Let's Encrypt, without Cloudflare (run from `web.sh`; run it again later if Let's Encrypt refused) |
 | `stratum.sh` | Builds blocknotify and the stratum; fills in their config files |
 | `dmd.sh` | The DMD stratum port with PPLNS (`dmd.sha.conf`), the firewall open on it, the notifications' keys and service |
-| `daemon.sh` | What a coin daemon build needs (DMD Core 1.3: CMake) |
+| `daemon.sh` | What a coin daemon build needs (DebitMyData Core 1.3: CMake) |
 | `server_cleanup.sh` | Starts the jobs and the DMD stratum at boot; removes the setup files |
 | `motd.sh` | The login screen and the `motd`, `screens`, `stratum`, `addport` commands (`ubuntu/`) |
 | `server_harden.sh` | Network tuning (`/etc/sysctl.d/60-yiimp.conf`) |
