@@ -3,7 +3,9 @@
 The DebitMyData pool's install on one server: YiiMP with DebitMyData's changes
 ([debitmydata-yiimp](https://github.com/DebitMyData-PoW/debitmydata-yiimp)), on Ubuntu 24.04 with
 PHP 8.3. It does nothing on its own: start from
-[DebitMyData-PoW/Multi-Pool-Installer](https://github.com/DebitMyData-PoW/Multi-Pool-Installer).
+[DebitMyData-PoW/Multi-Pool-Installer](https://github.com/DebitMyData-PoW/Multi-Pool-Installer),
+whose [INSTALL.md](https://github.com/DebitMyData-PoW/Multi-Pool-Installer/blob/master/INSTALL.md)
+explains the install.
 
 `start.sh` runs these steps in order:
 
